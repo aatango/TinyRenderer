@@ -30,11 +30,9 @@ impl Image {
     }
 
     pub fn set(&mut self, pixel: Pixel, position: &Position) {
-        if position.x >= self.width || position.y >= self.height {
-            panic!("Setting a pixel outside the image!");
+        if position.x < self.width && position.y < self.height {
+            self.data[position.x + self.width * (self.width - position.y - 1)] = pixel;
         }
-
-        self.data[position.x + self.width * position.y] = pixel;
     }
 
     pub fn line(&mut self, colour: Pixel, start: &Position, end: &Position) {
