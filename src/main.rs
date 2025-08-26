@@ -1,49 +1,35 @@
 pub mod geometry;
 pub mod image;
 
-use crate::geometry::{Geometry, Vertex};
-use image::pixel::{RED, WHITE};
+use image::pixel::{BLUE, GREEN, RED};
 use image::{Image, Position};
 
-const IMAGE_WIDTH: usize = 800;
+const IMAGE_WIDTH: usize = 128;
 const IMAGE_HEIGHT: usize = IMAGE_WIDTH;
-const OBJ_FILE_PATH: &str = "obj/african_head/african_head.obj";
 
 fn main() -> Result<(), std::io::Error> {
-    let input_string = std::fs::read_to_string(OBJ_FILE_PATH).unwrap_or_default();
-    let geometry = Geometry::decode_obj(input_string.as_str());
-
     let mut img: Image = Image::blank(IMAGE_WIDTH, IMAGE_HEIGHT);
 
-    let projected_vertices: Vec<Position> = geometry
-        .vertices
-        .into_iter()
-        .map(|v: Vertex| Position {
-            x: ((v.x + 1.0) * IMAGE_WIDTH as f64) as usize / 2,
-            y: ((v.y + 1.0) * IMAGE_HEIGHT as f64) as usize / 2,
-        })
-        .collect();
+    img.triangle(
+        RED,
+        &Position { x: 7, y: 45 },
+        &Position { x: 35, y: 100 },
+        &Position { x: 45, y: 60 },
+    );
 
-    for face in geometry.faces {
-        img.line(
-            RED,
-            &projected_vertices[face.0],
-            &projected_vertices[face.1],
-        );
-        img.line(
-            RED,
-            &projected_vertices[face.1],
-            &projected_vertices[face.2],
-        );
-        img.line(
-            RED,
-            &projected_vertices[face.2],
-            &projected_vertices[face.0],
-        );
-    }
+    img.triangle(
+        GREEN,
+        &Position { x: 120, y: 35 },
+        &Position { x: 90, y: 5 },
+        &Position { x: 45, y: 120 },
+    );
 
-    // draw vertices last, to overwrite pixel values.
-    projected_vertices.iter().for_each(|p| img.set(WHITE, p));
+    img.triangle(
+        BLUE,
+        &Position { x: 115, y: 83 },
+        &Position { x: 90, y: 80 },
+        &Position { x: 85, y: 120 },
+    );
 
     std::fs::write("output.ppm", img.ppm())
 }

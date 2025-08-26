@@ -102,6 +102,25 @@ impl Image {
         }
     }
 
+    pub fn triangle(&mut self, colour: Pixel, a: &Position, b: &Position, c: &Position) {
+        let mut positions = [a, b, c];
+        positions.sort_by_key(|p| p.y);
+        positions.reverse();
+
+        for y in positions[2].y..=positions[0].y {
+            let left_x = find_x(y, positions[0], positions[2]);
+            if y < positions[1].y {
+                for x in left_x..=find_x(y, positions[2], positions[1]) {
+                    self.set(colour, &Position { x, y });
+                }
+            } else {
+                for x in left_x..=find_x(y, positions[1], positions[0]) {
+                    self.set(colour, &Position { x, y });
+                }
+            }
+        }
+    }
+
     pub fn ppm(&self) -> Vec<u8> {
         let mut ppm = Vec::new();
 
@@ -117,4 +136,13 @@ impl Image {
 
         ppm
     }
+}
+
+fn find_x(y: usize, a: &Position, b: &Position) -> usize {
+    let start: (f64, f64) = (a.x as f64, a.y as f64);
+    let end: (f64, f64) = (b.x as f64, b.y as f64);
+
+    let slope: f64 = (end.1 - start.1) / (end.0 - start.0);
+
+    (((y as f64 - start.1) / slope) + start.0) as usize
 }
