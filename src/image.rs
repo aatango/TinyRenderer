@@ -2,6 +2,8 @@ pub mod pixel;
 
 use pixel::Pixel;
 
+use crate::geometry::Vertex;
+
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -48,6 +50,13 @@ pub struct Image {
 }
 
 impl Image {
+    fn project_vertex(&self, v: &Vertex) -> Position {
+        Position {
+            x: ((v.x + 1.0) * self.width as f64) as usize / 2,
+            y: ((v.y + 1.0) * self.height as f64) as usize / 2,
+        }
+    }
+
     pub fn blank(width: usize, height: usize) -> Self {
         Self {
             width,
@@ -136,7 +145,15 @@ impl Image {
         }
     }
 
-    pub fn triangle(&mut self, colour: Pixel, a: &Position, b: &Position, c: &Position) {
+    pub fn triangle(&mut self, colour: Pixel, i: &Vertex, j: &Vertex, k: &Vertex) {
+        let a: &Position = &self.project_vertex(i);
+        let b: &Position = &self.project_vertex(j);
+        let c: &Position = &self.project_vertex(k);
+
+        if triangle_area(a, b, c) < 0.0 {
+            return;
+        }
+
         let (bottom_left, top_right): (Position, Position) = bounding_box(vec![&a, &b, &c]);
 
         for x in bottom_left.x..=top_right.x {
