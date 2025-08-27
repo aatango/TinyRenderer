@@ -7,6 +7,40 @@ pub struct Position {
     pub y: usize,
 }
 
+impl Position {
+    fn is_inside_triangle(&self, a: &Position, b: &Position, c: &Position) -> bool {
+        let total_area: f64 = triangle_area(a, b, c);
+
+        let alpha: f64 = triangle_area(self, a, b) / total_area;
+        let beta: f64 = triangle_area(self, b, c) / total_area;
+        let gamma: f64 = triangle_area(self, c, a) / total_area;
+
+        alpha.is_sign_positive() && beta.is_sign_positive() && gamma.is_sign_positive()
+    }
+}
+
+fn triangle_area(a: &Position, b: &Position, c: &Position) -> f64 {
+    let (ax, ay) = (a.x as f64, a.y as f64);
+    let (bx, by) = (b.x as f64, b.y as f64);
+    let (cx, cy) = (c.x as f64, c.y as f64);
+
+    (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by)) / 2.0
+}
+
+fn bounding_box(positions: Vec<&Position>) -> (Position, Position) {
+    let min = Position {
+        x: positions.iter().map(|p| p.x).min().unwrap(),
+        y: positions.iter().map(|p| p.y).min().unwrap(),
+    };
+
+    let max = Position {
+        x: positions.iter().map(|p| p.x).max().unwrap(),
+        y: positions.iter().map(|p| p.y).max().unwrap(),
+    };
+
+    (min, max)
+}
+
 pub struct Image {
     width: usize,
     height: usize,
@@ -103,19 +137,13 @@ impl Image {
     }
 
     pub fn triangle(&mut self, colour: Pixel, a: &Position, b: &Position, c: &Position) {
-        let mut positions = [a, b, c];
-        positions.sort_by_key(|p| p.y);
-        positions.reverse();
+        let (bottom_left, top_right): (Position, Position) = bounding_box(vec![&a, &b, &c]);
 
-        for y in positions[2].y..=positions[0].y {
-            let left_x = find_x(y, positions[0], positions[2]);
-            if y < positions[1].y {
-                for x in left_x..=find_x(y, positions[2], positions[1]) {
-                    self.set(colour, &Position { x, y });
-                }
-            } else {
-                for x in left_x..=find_x(y, positions[1], positions[0]) {
-                    self.set(colour, &Position { x, y });
+        for x in bottom_left.x..=top_right.x {
+            for y in bottom_left.y..=top_right.y {
+                let px = Position { x, y };
+                if px.is_inside_triangle(a, b, c) {
+                    self.set(colour, &px);
                 }
             }
         }
@@ -136,13 +164,4 @@ impl Image {
 
         ppm
     }
-}
-
-fn find_x(y: usize, a: &Position, b: &Position) -> usize {
-    let start: (f64, f64) = (a.x as f64, a.y as f64);
-    let end: (f64, f64) = (b.x as f64, b.y as f64);
-
-    let slope: f64 = (end.1 - start.1) / (end.0 - start.0);
-
-    (((y as f64 - start.1) / slope) + start.0) as usize
 }
