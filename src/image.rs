@@ -9,18 +9,6 @@ pub struct Position {
     pub y: usize,
 }
 
-impl Position {
-    fn is_inside_triangle(&self, a: &Position, b: &Position, c: &Position) -> bool {
-        let total_area: f64 = triangle_area(a, b, c);
-
-        let alpha: f64 = triangle_area(self, a, b) / total_area;
-        let beta: f64 = triangle_area(self, b, c) / total_area;
-        let gamma: f64 = triangle_area(self, c, a) / total_area;
-
-        alpha.is_sign_positive() && beta.is_sign_positive() && gamma.is_sign_positive()
-    }
-}
-
 fn triangle_area(a: &Position, b: &Position, c: &Position) -> f64 {
     let (ax, ay) = (a.x as f64, a.y as f64);
     let (bx, by) = (b.x as f64, b.y as f64);
@@ -47,14 +35,18 @@ pub struct Image {
     width: usize,
     height: usize,
     data: Vec<Pixel>,
+    zbuffer: Vec<u8>,
 }
 
 impl Image {
-    fn project_vertex(&self, v: &Vertex) -> Position {
-        Position {
-            x: ((v.x + 1.0) * self.width as f64) as usize / 2,
-            y: ((v.y + 1.0) * self.height as f64) as usize / 2,
-        }
+    fn project_vertex(&self, v: &Vertex) -> (Position, u8) {
+        (
+            Position {
+                x: ((v.x + 1.0) * self.width as f64) as usize / 2,
+                y: ((v.y + 1.0) * self.height as f64) as usize / 2,
+            },
+            ((v.z + 1.) * 255. / 2.) as u8,
+        )
     }
 
     pub fn blank(width: usize, height: usize) -> Self {
@@ -69,12 +61,27 @@ impl Image {
                 };
                 width * height
             ],
+            zbuffer: vec![0; width * height],
         }
     }
 
     pub fn set(&mut self, pixel: Pixel, position: &Position) {
         if position.x < self.width && position.y < self.height {
             self.data[position.x + self.width * (self.width - position.y - 1)] = pixel;
+        }
+    }
+
+    fn get_zbuffer(&mut self, position: &Position) -> u8 {
+        if position.x < self.width && position.y < self.height {
+            self.zbuffer[position.x + self.width * (self.width - position.y - 1)]
+        } else {
+            0
+        }
+    }
+
+    fn set_zbuffer(&mut self, z: u8, position: &Position) {
+        if position.x < self.width && position.y < self.height {
+            self.zbuffer[position.x + self.width * (self.width - position.y - 1)] = z;
         }
     }
 
@@ -145,12 +152,12 @@ impl Image {
         }
     }
 
-    pub fn triangle(&mut self, colour: Pixel, i: &Vertex, j: &Vertex, k: &Vertex) {
-        let a: &Position = &self.project_vertex(i);
-        let b: &Position = &self.project_vertex(j);
-        let c: &Position = &self.project_vertex(k);
+    pub fn triangle(&mut self, _colour: Pixel, i: &Vertex, j: &Vertex, k: &Vertex) {
+        let (a, az): (Position, u8) = self.project_vertex(i);
+        let (b, bz): (Position, u8) = self.project_vertex(j);
+        let (c, cz): (Position, u8) = self.project_vertex(k);
 
-        if triangle_area(a, b, c) < 0.0 {
+        if triangle_area(&a, &b, &c) < 0.0 {
             return;
         }
 
@@ -158,9 +165,26 @@ impl Image {
 
         for x in bottom_left.x..=top_right.x {
             for y in bottom_left.y..=top_right.y {
-                let px = Position { x, y };
-                if px.is_inside_triangle(a, b, c) {
-                    self.set(colour, &px);
+                let px = &Position { x, y };
+                let total_area: f64 = triangle_area(&a, &b, &c);
+
+                let alpha: f64 = triangle_area(px, &a, &b) / total_area;
+                let beta: f64 = triangle_area(px, &b, &c) / total_area;
+                let gamma: f64 = triangle_area(px, &c, &a) / total_area;
+
+                if alpha.is_sign_positive() && beta.is_sign_positive() && gamma.is_sign_positive() {
+                    let z = (alpha * az as f64 + beta * bz as f64 + gamma * cz as f64) as u8;
+                    if z > self.get_zbuffer(px) {
+                        self.set_zbuffer(z, px);
+                        self.set(
+                            Pixel {
+                                red: z,
+                                green: z,
+                                blue: z,
+                            },
+                            px,
+                        );
+                    }
                 }
             }
         }
