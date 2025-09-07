@@ -1,5 +1,6 @@
 pub mod geometry;
 pub mod image;
+pub mod math;
 
 use crate::geometry::Geometry;
 use image::Image;
